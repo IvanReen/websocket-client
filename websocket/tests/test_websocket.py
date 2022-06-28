@@ -431,18 +431,17 @@ class WebSocketTest(unittest.TestCase):
     @unittest.skipUnless(TEST_WITH_INTERNET, "Internet-requiring tests are disabled")
     @unittest.skipUnless(TEST_SECURE_WS, "wss://echo.websocket.org doesn't work well.")
     def testSecureWebSocket(self):
-        if 1:
-            import ssl
-            s = ws.create_connection("wss://echo.websocket.org/")
-            self.assertNotEqual(s, None)
-            self.assertTrue(isinstance(s.sock, ssl.SSLSocket))
-            s.send("Hello, World")
-            result = s.recv()
-            self.assertEqual(result, "Hello, World")
-            s.send(u"こにゃにゃちは、世界")
-            result = s.recv()
-            self.assertEqual(result, "こにゃにゃちは、世界")
-            s.close()
+        import ssl
+        s = ws.create_connection("wss://echo.websocket.org/")
+        self.assertNotEqual(s, None)
+        self.assertTrue(isinstance(s.sock, ssl.SSLSocket))
+        s.send("Hello, World")
+        result = s.recv()
+        self.assertEqual(result, "Hello, World")
+        s.send(u"こにゃにゃちは、世界")
+        result = s.recv()
+        self.assertEqual(result, "こにゃにゃちは、世界")
+        s.close()
         #except:
         #    pass
 

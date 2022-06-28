@@ -88,8 +88,7 @@ def recv(sock, bufsize):
             error_code = extract_error_code(exc)
             if error_code is None:
                 raise
-            if error_code != errno.EAGAIN or error_code != errno.EWOULDBLOCK:
-                raise
+            raise
 
         r, w, e = select.select((sock, ), (), (), sock.gettimeout())
         if r:
@@ -143,8 +142,7 @@ def send(sock, data):
             error_code = extract_error_code(exc)
             if error_code is None:
                 raise
-            if error_code != errno.EAGAIN or error_code != errno.EWOULDBLOCK:
-                raise
+            raise
 
         r, w, e = select.select((), (sock, ), (), sock.gettimeout())
         if w:

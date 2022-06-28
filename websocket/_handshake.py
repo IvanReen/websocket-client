@@ -19,6 +19,7 @@ Copyright (C) 2010 Hiroki Ohtani(liris)
     Boston, MA  02110-1335  USA
 
 """
+
 import hashlib
 import hmac
 import os
@@ -33,15 +34,13 @@ from ._socket import *
 
 if six.PY3:
     from base64 import encodebytes as base64encode
-else:
-    from base64 import encodestring as base64encode
-
-if six.PY3:
     if six.PY34:
         from http import client as HTTPStatus
     else:
         from http import HTTPStatus
 else:
+    from base64 import encodestring as base64encode
+
     import httplib as HTTPStatus
 
 __all__ = ["handshake_response", "handshake", "SUPPORTED_REDIRECT_STATUSES"]
@@ -87,48 +86,48 @@ def handshake(sock, hostname, port, resource, **options):
 
 def _pack_hostname(hostname):
     # IPv6 address
-    if ':' in hostname:
-        return '[' + hostname + ']'
-
-    return hostname
+    return f'[{hostname}]' if ':' in hostname else hostname
 
 def _get_handshake_headers(resource, host, port, options):
     headers = [
-        "GET %s HTTP/1.1" % resource,
+        f"GET {resource} HTTP/1.1",
         "Upgrade: websocket",
-        "Connection: Upgrade"
+        "Connection: Upgrade",
     ]
-    if port == 80 or port == 443:
+
+    if port in [80, 443]:
         hostport = _pack_hostname(host)
     else:
         hostport = "%s:%d" % (_pack_hostname(host), port)
 
     if "host" in options and options["host"] is not None:
-        headers.append("Host: %s" % options["host"])
+        headers.append(f'Host: {options["host"]}')
     else:
-        headers.append("Host: %s" % hostport)
+        headers.append(f"Host: {hostport}")
 
     if "suppress_origin" not in options or not options["suppress_origin"]:
         if "origin" in options and options["origin"] is not None:
-            headers.append("Origin: %s" % options["origin"])
+            headers.append(f'Origin: {options["origin"]}')
         else:
-            headers.append("Origin: http://%s" % hostport)
+            headers.append(f"Origin: http://{hostport}")
 
     key = _create_sec_websocket_key()
-    
+
     # Append Sec-WebSocket-Key & Sec-WebSocket-Version if not manually specified
-    if not 'header' in options or 'Sec-WebSocket-Key' not in options['header']:
+    if 'header' not in options or 'Sec-WebSocket-Key' not in options['header']:
         key = _create_sec_websocket_key()
-        headers.append("Sec-WebSocket-Key: %s" % key)
+        headers.append(f"Sec-WebSocket-Key: {key}")
     else:
         key = options['header']['Sec-WebSocket-Key']
 
-    if not 'header' in options or 'Sec-WebSocket-Version' not in options['header']:
-        headers.append("Sec-WebSocket-Version: %s" % VERSION)
+    if (
+        'header' not in options
+        or 'Sec-WebSocket-Version' not in options['header']
+    ):
+        headers.append(f"Sec-WebSocket-Version: {VERSION}")
 
-    subprotocols = options.get("subprotocols")
-    if subprotocols:
-        headers.append("Sec-WebSocket-Protocol: %s" % ",".join(subprotocols))
+    if subprotocols := options.get("subprotocols"):
+        headers.append(f'Sec-WebSocket-Protocol: {",".join(subprotocols)}')
 
     if "header" in options:
         header = options["header"]
@@ -143,14 +142,10 @@ def _get_handshake_headers(resource, host, port, options):
     server_cookie = CookieJar.get(host)
     client_cookie = options.get("cookie", None)
 
-    cookie = "; ".join(filter(None, [server_cookie, client_cookie]))
+    if cookie := "; ".join(filter(None, [server_cookie, client_cookie])):
+        headers.append(f"Cookie: {cookie}")
 
-    if cookie:
-        headers.append("Cookie: %s" % cookie)
-
-    headers.append("")
-    headers.append("")
-
+    headers.extend(("", ""))
     return headers, key
 
 
@@ -179,7 +174,7 @@ def _validate(headers, key, subprotocols):
     if subprotocols:
         subproto = headers.get("sec-websocket-protocol", None).lower()
         if not subproto or subproto not in [s.lower() for s in subprotocols]:
-            error("Invalid subprotocol: " + str(subprotocols))
+            error(f"Invalid subprotocol: {str(subprotocols)}")
             return False, None
 
     result = headers.get("sec-websocket-accept", None)
@@ -190,11 +185,9 @@ def _validate(headers, key, subprotocols):
     if isinstance(result, six.text_type):
         result = result.encode('utf-8')
 
-    value = (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode('utf-8')
+    value = f"{key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode('utf-8')
     hashed = base64encode(hashlib.sha1(value).digest()).strip().lower()
-    success = compare_digest(hashed, result)
-
-    if success:
+    if success := compare_digest(hashed, result):
         return True, subproto
     else:
         return False, None
